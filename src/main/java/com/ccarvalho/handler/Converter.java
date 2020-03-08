@@ -3,6 +3,7 @@ package com.ccarvalho.handler;
 import com.openhtmltopdf.extend.FSUriResolver;
 import com.openhtmltopdf.pdfboxout.PdfRendererBuilder;
 import com.openhtmltopdf.swing.NaiveUserAgent;
+import org.jetbrains.annotations.NotNull;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
 
@@ -30,23 +31,7 @@ public class Converter {
         try (OutputStream os = new FileOutputStream(this.destinationFilePath)) {
             final NaiveUserAgent.DefaultUriResolver defaultUriResolver = new NaiveUserAgent.DefaultUriResolver();
             PdfRendererBuilder builder = new PdfRendererBuilder();
-            builder.useUriResolver(new FSUriResolver() {
-                @Override
-                public String resolveURI(String baseUri, String uri) {
-                    String supResolved = defaultUriResolver.resolveURI(baseUri, uri);
-                    if (supResolved == null || supResolved.isEmpty())
-                        return null;
-
-                    try {
-                        URI uriObj = new URI(supResolved);
-                        return uriObj.toString();
-                    } catch (URISyntaxException e) {
-                        e.printStackTrace();
-                    }
-                    return null;
-                }
-            });
-            //builder.withUri(this.htmlFileUri);
+            builder.useUriResolver(getResolver(defaultUriResolver));
             builder.useHttpStreamImplementation(new OkHttpStreamFactory());
             org.w3c.dom.Document document = html5ParseDocument(this.htmlFileUri, 10000);
             builder.withW3cDocument(document, this.htmlFileUri);
@@ -55,6 +40,23 @@ public class Converter {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @NotNull
+    private FSUriResolver getResolver(NaiveUserAgent.DefaultUriResolver defaultUriResolver) {
+        return (baseUri, uri) -> {
+            String supResolved = defaultUriResolver.resolveURI(baseUri, uri);
+            if (supResolved == null || supResolved.isEmpty())
+                return null;
+
+            try {
+                URI uriObj = new URI(supResolved);
+                return uriObj.toString();
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+            }
+            return null;
+        };
     }
 
     public org.w3c.dom.Document html5ParseDocument(String urlStr, int timeoutMs) throws IOException {
